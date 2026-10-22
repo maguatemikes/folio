@@ -46,6 +46,11 @@ some product images to headless clients, so not every page can be captured this 
   React re-render overwrites the attribute and wipes the class — the element then falls
   back to `opacity: 0` and vanishes permanently, since the observer has already unobserved
   it. Put changing state on a data attribute instead (see `components/Services.tsx`).
+- **A gradient stroke on a perfectly horizontal SVG path paints nothing.** The default
+  `gradientUnits` is `objectBoundingBox`, and a straight horizontal line has a zero-height
+  box, so the paint is degenerate. Both diagram cards hit this and lost connectors
+  silently. Each wire now carries its own `userSpaceOnUse` gradient, passed in via a
+  `--wire` custom property.
 - **Lenis emits no native scroll events.** Anything scroll-driven subscribes through
   `onScroll()` in `components/SmoothScroll.tsx`.
 - **Size drawn cards off `vh`, not the column.** Sized off the column they ran ~96vh tall

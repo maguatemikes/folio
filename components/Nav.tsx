@@ -24,10 +24,15 @@ export default function Nav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  /** Nav items are a mix of in-page anchors and real routes */
+  const isRoute = (href: string) => href.startsWith("/");
+
   // Anchor links must wait for the menu to close before scrolling
   const goTo = (href: string) => (e: React.MouseEvent) => {
     e.preventDefault();
     setOpen(false);
+    // A route is not a selector — querySelector("/contact") throws
+    if (isRoute(href)) return;
     const target = document.querySelector(href);
     if (!target) return;
     setTimeout(() => {
@@ -54,9 +59,16 @@ export default function Nav() {
           </span>
         </div>
         <nav className="nav__links">
-          {nav.map((item) => (
-            <RollLink key={item.href} href={item.href} label={item.label} data-magnetic />
-          ))}
+          {nav.map((item) =>
+            isRoute(item.href) ? (
+              // Same roll markup as RollLink, but routed through the grid wipe
+              <TransitionLink key={item.href} href={item.href} className="link" data-magnetic>
+                <span data-text={item.label}>{item.label}</span>
+              </TransitionLink>
+            ) : (
+              <RollLink key={item.href} href={item.href} label={item.label} data-magnetic />
+            )
+          )}
           <TransitionLink href={cta.href} className="nav__cta" data-magnetic>
             {cta.label}
           </TransitionLink>
@@ -74,18 +86,35 @@ export default function Nav() {
 
       <div className="menu" id="menu" aria-hidden={!open}>
         <nav className="menu__links">
-          {nav.map((item, i) => (
-            <a
-              key={item.href}
-              href={item.href}
-              onClick={goTo(item.href)}
-              style={{ "--i": i } as React.CSSProperties}
-              tabIndex={open ? 0 : -1}
-            >
-              <span className="menu__index mono">0{i + 1}</span>
-              <span className="menu__label">{item.label}</span>
-            </a>
-          ))}
+          {nav.map((item, i) => {
+            const inner = (
+              <>
+                <span className="menu__index mono">0{i + 1}</span>
+                <span className="menu__label">{item.label}</span>
+              </>
+            );
+            return isRoute(item.href) ? (
+              <TransitionLink
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                style={{ "--i": i } as React.CSSProperties}
+                tabIndex={open ? 0 : -1}
+              >
+                {inner}
+              </TransitionLink>
+            ) : (
+              <a
+                key={item.href}
+                href={item.href}
+                onClick={goTo(item.href)}
+                style={{ "--i": i } as React.CSSProperties}
+                tabIndex={open ? 0 : -1}
+              >
+                {inner}
+              </a>
+            );
+          })}
         </nav>
 
         <TransitionLink href={cta.href} className="menu__cta" onClick={() => setOpen(false)}>

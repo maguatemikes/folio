@@ -27,6 +27,7 @@ export default function HorizontalWork() {
     let distance = 0;
     let current = 0;
     let raf = 0;
+    const clamp = (n: number) => Math.min(Math.max(n, 0), 1);
 
     const measure = () => {
       distance = Math.max(track.scrollWidth - window.innerWidth, 0);
@@ -46,12 +47,28 @@ export default function HorizontalWork() {
       cards.forEach((card) => {
         const media = card.querySelector<HTMLElement>(".hcard__media")!;
         const art = card.querySelector<HTMLElement>(".hcard__art");
+        const info = card.querySelector<HTMLElement>(".hcard__info");
         const r = card.getBoundingClientRect();
 
-        // Unmask from the left edge as the card enters from the right
-        const reveal = Math.min(Math.max((vw - r.left) / (vw * 0.45), 0), 1);
-        const eased = 1 - Math.pow(1 - reveal, 3);
+        // How far the card has travelled into view, 0 at the right edge to 1
+        // once it is well inside. Spread over most of the viewport so the card
+        // builds as you scroll rather than snapping in near the edge.
+        const enter = reduced ? 1 : clamp((vw - r.left) / (vw * 0.72));
+        const eased = 1 - Math.pow(1 - enter, 3);
+
+        // Unmask from the left edge as it comes
         media.style.clipPath = `inset(0 ${(1 - eased) * 100}% 0 0 round 6px)`;
+        // ...and let the whole card settle up into place while it does
+        card.style.opacity = String(0.2 + eased * 0.8);
+        card.style.transform = `translate3d(0, ${(1 - eased) * 34}px, 0) scale(${0.955 + eased * 0.045})`;
+
+        // The title follows a beat behind the image, so the card reads as
+        // arriving in two stages instead of one block
+        if (info) {
+          const lag = 1 - Math.pow(1 - clamp((enter - 0.18) / 0.82), 3);
+          info.style.opacity = String(lag);
+          info.style.transform = `translate3d(0, ${(1 - lag) * 16}px, 0)`;
+        }
 
         const center = (r.left + r.width / 2 - vw / 2) / vw; // -1..1 around center
         if (art) {

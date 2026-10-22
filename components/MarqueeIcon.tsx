@@ -54,6 +54,16 @@ const MARKS: Record<string, Mark> = {
     cells: [[0, 0], [0, 2], [1, 1], [2, 1]],
     accent: [2, 1],
   },
+  // a branch leaving the main line
+  Git: {
+    cells: [[0, 1], [1, 1], [2, 1], [1, 0]],
+    accent: [1, 0],
+  },
+  // header and footer bars held apart by the content stem
+  CMS: {
+    cells: [[0, 0], [1, 0], [2, 0], [1, 1], [0, 2], [1, 2], [2, 2]],
+    accent: [1, 1],
+  },
 };
 
 export default function MarqueeIcon({ name }: { name: string }) {

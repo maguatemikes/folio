@@ -108,8 +108,29 @@ function Glyph({ type, x, y }: { type: Node["icon"]; x: number; y: number }) {
 export default function AutomationCard({ system }: { system: System }) {
   const center = (i: number) => ({ x: NODES[i].x + NODE_W / 2, y: NODES[i].y + NODE_H / 2 });
 
+  /**
+   * Each wire carries its own gradient in user-space coordinates. A single
+   * shared gradient defaults to objectBoundingBox units, and the two wires
+   * between equal-height nodes are perfectly horizontal — a zero-height box,
+   * which renders no paint at all, so those connectors were invisible.
+   */
+  const wires = EDGES.map(([from, to]) => {
+    const a = center(from);
+    const b = center(to);
+    const midX = (a.x + b.x) / 2;
+    const x1 = a.x + NODE_W / 2 - 6;
+    const x2 = b.x - NODE_W / 2 + 6;
+    return {
+      d: `M ${x1} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${x2} ${b.y}`,
+      x1,
+      y1: a.y,
+      x2,
+      y2: b.y,
+    };
+  });
+
   return (
-    <Link href={system.href ?? "/start"} className="hcard hcard--flow">
+    <Link href={system.href ?? "/contact"} className="hcard hcard--flow">
       <div className="hcard__media flow">
         {/* Canvas chrome */}
         <div className="flow__bar mono">
@@ -127,24 +148,34 @@ Content pipeline <span className="accent">·</span> 50% manual work saved
             <pattern id="flow-grid" width="26" height="26" patternUnits="userSpaceOnUse">
               <circle cx="1" cy="1" r="1" className="flow__dot" />
             </pattern>
-            <linearGradient id="flow-wire" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(239,238,234,.06)" />
-              <stop offset="50%" stopColor="rgba(239,238,234,.22)" />
-              <stop offset="100%" stopColor="rgba(239,238,234,.06)" />
-            </linearGradient>
+            {wires.map((w, i) => (
+              <linearGradient
+                key={i}
+                id={`flow-wire-${i}`}
+                gradientUnits="userSpaceOnUse"
+                x1={w.x1}
+                y1={w.y1}
+                x2={w.x2}
+                y2={w.y2}
+              >
+                <stop offset="0%" stopColor="rgba(239,238,234,.06)" />
+                <stop offset="50%" stopColor="rgba(239,238,234,.22)" />
+                <stop offset="100%" stopColor="rgba(239,238,234,.06)" />
+              </linearGradient>
+            ))}
           </defs>
 
           <rect width="1050" height="400" fill="url(#flow-grid)" />
 
-          {EDGES.map(([from, to], i) => {
-            const a = center(from);
-            const b = center(to);
-            const midX = (a.x + b.x) / 2;
-            const d = `M ${a.x + NODE_W / 2 - 6} ${a.y} C ${midX} ${a.y}, ${midX} ${b.y}, ${b.x - NODE_W / 2 + 6} ${b.y}`;
+          {wires.map(({ d }, i) => {
             const delay = { "--i": i } as React.CSSProperties;
             return (
               <g key={i}>
-                <path className="flow__wire" d={d} />
+                <path
+                  className="flow__wire"
+                  d={d}
+                  style={{ "--wire": `url(#flow-wire-${i})` } as React.CSSProperties}
+                />
                 <path className="flow__pulse" d={d} style={delay} />
                 <circle className="flow__packet" r="3.5" style={delay}>
                   <animateMotion dur="3.6s" repeatCount="indefinite" path={d} begin={`${i * 0.3}s`} />

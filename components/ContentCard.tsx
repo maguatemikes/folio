@@ -16,7 +16,7 @@ const POSTS = [
 
 export default function ContentCard({ system }: { system: System }) {
   return (
-    <Link href={system.href ?? "/start"} className="hcard hcard--content">
+    <Link href={system.href ?? "/contact"} className="hcard hcard--content">
       <div className="hcard__media gen">
         <div className="gen__bar mono">
           <span>Auto-blog engine</span>

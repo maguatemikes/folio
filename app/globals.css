@@ -123,24 +123,29 @@ ul { list-style: none; }
   .loader.is-filled .loader__pill { width: 56vw; height: 24vw; }
 }
 
-/* Page transition — a grid of tiles that arrives and leaves in random order */
+/* Page transition — tiles burst from the click point in two layers, ink
+   leading and accent landing on top. Motion owns the timing and the spring
+   (components/PageTransition.tsx); this lays out the grid and colours it.
+   Tiles scale on Y only and overlap by a hair, so no seams show between them. */
 .pt {
   position: fixed; inset: 0; z-index: 90;
+  pointer-events: none;
+}
+.pt__layer {
+  position: absolute; inset: 0;
   display: grid;
   grid-template-columns: repeat(var(--cols), 1fr);
   grid-template-rows: repeat(var(--rows), 1fr);
-  pointer-events: none;
 }
-.pt.is-covering, .pt.is-covered { pointer-events: all; }
+.pt__cell { background: var(--accent); }
 .pt__cell {
-  background: var(--accent);
   transform: scale(0);
-  transition: transform var(--pt-cell, 260ms) cubic-bezier(.33, 1, .68, 1) var(--d);
-  will-change: transform;
+  transform-origin: center;
+  transition: none;
+  /* a hair of bleed so neighbouring tiles never leave a hairline gap */
+  margin: -0.5px;
+  will-change: transform, opacity;
 }
-/* each tile pops in, in a random order, then pops out in a different one */
-.pt.is-covering .pt__cell, .pt.is-covered .pt__cell { transform: scale(1.02); }
-.pt.is-uncovering .pt__cell { transform: scale(0); }
 
 /* Custom scrollbar — the native one is hidden below */
 .scrollbar {
@@ -521,7 +526,8 @@ section { padding: clamp(80px, 12vw, 180px) var(--gutter) 0; }
 .flow__dot { fill: rgba(239,238,234,.09); }
 
 /* Wires: a faint line, a travelling highlight, and a packet riding along it */
-.flow__wire { fill: none; stroke: url(#flow-wire); stroke-width: 1.5; }
+/* Per-wire gradient, set inline — see AutomationCard for why */
+.flow__wire { fill: none; stroke: var(--wire); stroke-width: 1.5; }
 .flow__pulse {
   fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
   stroke-dasharray: 18 300; stroke-dashoffset: 318;
@@ -904,6 +910,11 @@ section { padding: clamp(80px, 12vw, 180px) var(--gutter) 0; }
 .about__lead { position: relative; }
 .fluid { position: absolute; inset: 0; }
 .fluid__canvas { display: block; width: 100%; height: 100%; }
+/* The fluid bleeds past the text on purpose, but that bleed was widening the
+   document — 51px at 1440, 5px at 375. Clip at the section so the effect is
+   kept and the overflow is not. `clip`, not `hidden`, to avoid making this a
+   scroll container. */
+.about { overflow-x: clip; }
 .fluid--behind {
   inset: -14% -6%;
   z-index: 0; pointer-events: none;
@@ -1030,7 +1041,7 @@ section { padding: clamp(80px, 12vw, 180px) var(--gutter) 0; }
 }
 
 /* ==========================================================================
-   Project brief (/start)
+   Project brief (/contact)
    ========================================================================== */
 .start { padding: 132px var(--gutter) 0; }
 .start__meta { display: flex; justify-content: space-between; color: var(--muted); }
@@ -1121,6 +1132,39 @@ body.is-ready .start .line__inner, .start .line__inner { transform: translateY(0
 }
 
 @media (max-width: 768px) {
+  /* The log strip is nowrap and pushed the card's CTA 44px off the edge.
+     Drop the decorative log, keep the affordance. */
+  .flow__log-track { display: none; }
+
+  /* Auto-blog card: its content wanted 642x395 inside a 358x269 box. Two
+     columns of pages cannot fit, and `1fr` would not shrink below the
+     nowrap min-content of the meta row. One column, two pages, tighter. */
+  .gen__body { grid-template-columns: 38% 1fr; }
+  .gen__seed { padding: 12px; gap: 6px; }
+  .gen__outline { gap: 4px; }
+  .gen__outline li:nth-child(n + 4) { display: none; }
+  .gen__pages { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px 12px; }
+  .gen__page { padding: 8px; gap: 8px; }
+  .gen__page:nth-child(n + 3) { display: none; }
+  .gen__thumb { width: 34px; height: 34px; }
+  .gen__lines { gap: 4px; }
+  .gen__meta { min-width: 0; }
+  .gen__anchor { min-width: 0; }
+
+  /* Card footers are a fixed height, but their long captions wrapped to 105px
+     and spilled out the bottom. The meter and the CTA carry the meaning. */
+  .gen__foot > span:not([class]),
+  .track__foot > span:not([class]),
+  .listing__foot > span:not([class]) { display: none; }
+
+  /* 150px + 1fr + 130px + gaps + padding needs 352px before the flexible
+     column gets anything — 4px short at 356. */
+  .listing__head, .listing__row {
+    grid-template-columns: 88px minmax(0, 1fr) 70px;
+    gap: 10px;
+    padding: 0 12px;
+  }
+
   .nav { grid-template-columns: 1fr auto; padding-top: calc(18px + env(safe-area-inset-top)); }
   .nav__meta, .nav__links { display: none; }
   .nav__burger { display: block; }
@@ -1190,12 +1234,12 @@ body.is-ready .start .line__inner, .start .line__inner { transform: translateY(0
   /* The diagram column is sized off viewport HEIGHT, not a fraction of the
      width — a fraction made it 96vh tall on short wide windows. The text
      column takes whatever is left, so the card still reaches the gutter. */
-  grid-template-columns: minmax(300px, 1fr) minmax(0, calc(70vh * 5 / 3));
+  grid-template-columns: minmax(min(300px, 100%), 1fr) minmax(0, calc(70vh * 5 / 3));
   gap: clamp(24px, 3.5vw, 64px);
   align-items: start;
 }
 /* Every other row swaps sides, so the reading line crosses the page */
-.systems__row--flip { grid-template-columns: minmax(0, calc(70vh * 5 / 3)) minmax(300px, 1fr); }
+.systems__row--flip { grid-template-columns: minmax(0, calc(70vh * 5 / 3)) minmax(min(300px, 100%), 1fr); }
 .systems__row--flip .systems__card { order: 1; }
 .systems__row--flip .systems__text { order: 2; }
 
@@ -1286,12 +1330,20 @@ body.is-ready .start .line__inner, .start .line__inner { transform: translateY(0
 .systems__row.is-in .systems__card { clip-path: inset(0 0 0 0); }
 
 @media (max-width: 1000px) {
-  .systems__row, .systems__row--flip { grid-template-columns: 1fr; gap: 20px; }
+  /* `1fr` means `minmax(auto, 1fr)`; the auto minimum would not shrink below the
+     diagram's min-content width and pushed the page to 651px at 375px wide. */
+  .systems__row, .systems__row--flip { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .systems__text, .systems__card { min-width: 0; }
   .systems__row--flip .systems__text { order: 1; }
   .systems__row--flip .systems__card { order: 2; }
   .systems__text { position: static; }
   .systems .hcard:nth-child(n) { width: 100%; }
+  /* 4/3 is only tall enough for the wide automation SVG. The three dense
+     cards need a squarer box or their content is clipped at the bottom. */
   .systems .hcard:nth-child(n) .hcard__media { aspect-ratio: 4 / 3; }
+  .systems .hcard--content:nth-child(n) .hcard__media,
+  .systems .hcard--track:nth-child(n) .hcard__media,
+  .systems .hcard--listing:nth-child(n) .hcard__media { aspect-ratio: 1 / 1; }
   .systems__body { max-width: 62ch; }
 }
 
@@ -1338,7 +1390,7 @@ body.is-ready .start .line__inner, .start .line__inner { transform: translateY(0
 .track__svg { flex: 1; width: 100%; min-height: 0; }
 .track__dot { fill: rgba(239,238,234,.08); }
 
-.track__wire { fill: none; stroke: url(#track-wire); stroke-width: 1.5; }
+.track__wire { fill: none; stroke: var(--wire); stroke-width: 1.5; }
 .track__pulse {
   fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
   stroke-dasharray: 16 260; stroke-dashoffset: 276;
@@ -1403,4 +1455,522 @@ body.is-ready .start .line__inner, .start .line__inner { transform: translateY(0
   .track__pulse { stroke-dasharray: none; stroke-dashoffset: 0; opacity: .3; }
   .track__ok { opacity: 1; }
   .track__meter i { transform: scaleX(1); }
+}
+
+/* ── Applied AI card ──────────────────────────────────────────────────────
+   Context assembled on the left, a constrained model in the middle, typed
+   output on the right. Dark like the other infrastructure cards, but panes
+   rather than a node graph so it does not read as a third flow diagram. */
+.hcard--ai .hcard__media, .hcard--ai:nth-child(n) .hcard__media {
+  height: min(70vh, calc(88vw * 3 / 5));
+  width: auto;
+  aspect-ratio: 5 / 3;
+  background:
+    radial-gradient(110% 80% at 50% 0%, #1b1b1a 0%, #0d0d0d 60%),
+    var(--dark);
+  display: flex; flex-direction: column;
+  color: var(--dark-ink);
+  box-shadow: 0 30px 80px -40px rgba(13,13,13,.5);
+}
+
+.ai__bar {
+  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 14px 18px; font-size: 10px;
+  color: rgba(239,238,234,.66);
+  border-bottom: 1px solid rgba(239,238,234,.08);
+}
+.ai__model { display: inline-flex; align-items: center; gap: 8px; }
+.ai__model i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: ai-live 2.4s ease-out infinite;
+}
+@keyframes ai-live {
+  0% { box-shadow: 0 0 0 0 rgba(255,77,26,.5); }
+  70%, 100% { box-shadow: 0 0 0 7px rgba(255,77,26,0); }
+}
+.ai__schema { color: rgba(239,238,234,.6); }
+
+.ai__body {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 30% 1fr 38%;
+  align-items: center; gap: 14px; padding: 16px 18px;
+}
+.ai__label {
+  display: block; font-size: 10px; color: rgba(239,238,234,.6); margin-bottom: 10px;
+}
+
+/* Context blocks stack in, one after another */
+.ai__context { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ai__block {
+  border: 1px solid rgba(239,238,234,.14);
+  background: rgba(255,255,255,.04);
+  border-radius: 8px; padding: 7px 10px;
+  opacity: 0; transform: translateX(-8px);
+  animation: ai-block 7s var(--ease) infinite;
+  animation-delay: calc(var(--i) * .22s);
+}
+@keyframes ai-block {
+  0% { opacity: 0; transform: translateX(-8px); }
+  9%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateX(-4px); }
+}
+.ai__blockLabel {
+  display: block; font-size: clamp(11px, .95vw, 13.5px); font-weight: 500;
+  letter-spacing: -0.01em; color: var(--dark-ink);
+}
+.ai__blockSub { display: block; font-size: 10px; color: rgba(239,238,234,.62); margin-top: 2px; }
+
+/* The model core */
+.ai__core { display: flex; flex-direction: column; align-items: center; gap: 14px; min-width: 0; }
+.ai__ring {
+  position: relative; width: clamp(64px, 7vw, 92px); aspect-ratio: 1;
+  display: grid; place-items: center;
+}
+.ai__ring i {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(255,77,26,.45);
+  animation: ai-pulse 3s var(--ease-out) infinite;
+}
+.ai__ring i:last-child { animation-delay: 1.5s; }
+@keyframes ai-pulse {
+  0% { transform: scale(.72); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: scale(1.1); opacity: 0; }
+}
+.ai__ring span {
+  font-size: 10px; color: var(--accent);
+  border: 1px solid rgba(255,77,26,.5); border-radius: 999px;
+  padding: 5px 10px; background: rgba(255,77,26,.08);
+}
+.ai__tools { display: flex; flex-direction: column; gap: 5px; font-size: 10px; }
+.ai__tools li {
+  color: rgba(239,238,234,.62); padding-left: 13px; position: relative;
+  opacity: .4; animation: ai-tool 7s var(--ease) infinite;
+  animation-delay: calc(1.2s + var(--i) * .5s);
+}
+.ai__tools li::before {
+  content: "›"; position: absolute; left: 0; color: var(--accent);
+}
+@keyframes ai-tool { 0%, 6% { opacity: .35; } 16%, 86% { opacity: 1; } 100% { opacity: .35; } }
+
+/* Typed spec, and the page it renders into */
+/* Stretches to the row so the wireframe's `flex: 1` has height to take —
+   centered, it collapsed to a 40px strip and read as nothing. */
+.ai__out { min-width: 0; align-self: stretch; display: flex; flex-direction: column; gap: 8px; }
+
+.ai__tabs { display: flex; gap: 5px; font-size: 9px; }
+.ai__tab {
+  padding: 3px 8px; border-radius: 999px;
+  border: 1px solid rgba(239,238,234,.16);
+  color: rgba(239,238,234,.6);
+}
+.ai__tab.is-on {
+  color: var(--accent); border-color: rgba(255,77,26,.5);
+  background: rgba(255,77,26,.08);
+}
+
+.ai__json {
+  border: 1px solid rgba(239,238,234,.12); border-radius: 8px;
+  background: rgba(255,255,255,.03);
+  padding: 8px 10px; font-size: 10px; line-height: 1.6;
+}
+.ai__line {
+  display: flex; align-items: baseline; gap: 5px;
+  white-space: nowrap; overflow: hidden;
+  opacity: 0; animation: ai-line 7s var(--ease) infinite;
+  animation-delay: calc(1.4s + var(--i) * .22s);
+}
+@keyframes ai-line {
+  0%, 18% { opacity: 0; transform: translateY(3px); }
+  26%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.ai__key { color: var(--accent); }
+.ai__colon { color: rgba(239,238,234,.45); }
+.ai__val { color: rgba(239,238,234,.82); overflow: hidden; text-overflow: ellipsis; }
+
+/* The wireframe assembles in the order the spec lists */
+.ai__wire {
+  flex: 1; min-height: 90px;
+  display: flex; flex-direction: column; gap: 5px;
+  border: 1px solid rgba(239,238,234,.12); border-radius: 8px;
+  background: rgba(255,255,255,.03);
+  padding: 8px;
+}
+.ai__wireRow {
+  position: relative; display: flex; gap: 5px; align-items: stretch;
+  opacity: 0; transform: translateY(5px);
+  animation: ai-wire 7s var(--ease) infinite;
+  animation-delay: calc(2.4s + var(--i) * .26s);
+}
+@keyframes ai-wire {
+  0%, 30% { opacity: 0; transform: translateY(5px); }
+  38%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.ai__wireRow i {
+  flex: 1; border-radius: 3px;
+  background: rgba(239,238,234,.14);
+  border: 1px solid rgba(239,238,234,.1);
+}
+.ai__wireRow--nav { height: 11px; }
+.ai__wireRow--nav i:first-child { flex: 0 0 26px; background: rgba(255,77,26,.5); }
+.ai__wireRow--hero { flex: 1.6; }
+.ai__wireRow--hero i:first-child { flex: 1.4; background: linear-gradient(140deg, rgba(255,77,26,.4), rgba(255,77,26,.12)); }
+.ai__wireRow--grid { flex: 1; }
+.ai__wireRow--cta { height: 14px; }
+.ai__wireRow--cta i { flex: 0 0 38%; background: rgba(255,77,26,.35); }
+.ai__wireTag {
+  position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
+  font-size: 8px; color: rgba(239,238,234,.5);
+  pointer-events: none;
+}
+
+.ai__pass {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 10px; color: #3ddc84;
+}
+.ai__pass i { width: 5px; height: 5px; border-radius: 50%; background: #3ddc84; }
+
+.ai__foot {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  height: 54px; padding: 0 18px; font-size: 10px;
+  border-top: 1px solid rgba(239,238,234,.08);
+  color: rgba(239,238,234,.66);
+}
+.ai__meter { flex: none; width: 90px; height: 3px; border-radius: 999px; background: rgba(239,238,234,.12); overflow: hidden; }
+.ai__meter i {
+  display: block; height: 100%; background: var(--accent); transform-origin: left;
+  animation: ai-fill 7s var(--ease) infinite;
+}
+@keyframes ai-fill { 0% { transform: scaleX(.06); } 80%, 100% { transform: scaleX(1); } }
+.ai__cta { margin-left: auto; color: rgba(239,238,234,.72); transition: color .4s; white-space: nowrap; }
+.hcard--ai:hover .ai__cta { color: var(--dark-ink); }
+
+@media (max-width: 768px) {
+  .systems .hcard--ai:nth-child(n) .hcard__media { aspect-ratio: 1 / 1; }
+  .ai__body { grid-template-columns: 0.85fr 1fr; gap: 10px; padding: 12px; }
+  .ai__core { display: none; }
+  .ai__block:nth-child(n + 4) { display: none; }
+  .ai__json { display: none; }
+  .ai__wireTag { display: none; }
+  .ai__foot > span:not([class]) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai__block, .ai__line, .ai__wireRow, .ai__tools li,
+  .ai__meter i, .ai__ring i, .ai__model i { animation: none; }
+  .ai__block, .ai__line, .ai__wireRow { opacity: 1; transform: none; }
+  .ai__tools li { opacity: 1; }
+  .ai__meter i { transform: scaleX(1); }
+}
+
+/* -- Headless integration card -------------------------------------------
+   CMS on the left, API in the middle, rendered front end on the right.
+   Light, so it breaks up the run of dark pipeline cards. */
+.hcard--headless .hcard__media, .hcard--headless:nth-child(n) .hcard__media {
+  height: min(70vh, calc(88vw * 3 / 5));
+  width: auto;
+  aspect-ratio: 5 / 3;
+  background: #fff;
+  border: 1px solid var(--line);
+  display: flex; flex-direction: column;
+  box-shadow: 0 30px 80px -40px rgba(13,13,13,.35);
+}
+.hl__bar {
+  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 13px 18px; font-size: 10px; color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.hl__stat { color: var(--ink); }
+
+.hl__body {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 1fr 0.8fr 1fr;
+  align-items: center; gap: 14px; padding: 16px 18px;
+}
+.hl__label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 10px; }
+.hl__col { min-width: 0; }
+
+.hl__src {
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 11px; margin-bottom: 8px; background: var(--bg);
+  opacity: 0; transform: translateX(-6px);
+  animation: hl-src 7s var(--ease) infinite;
+  animation-delay: calc(var(--i) * .3s);
+}
+@keyframes hl-src {
+  0% { opacity: 0; transform: translateX(-6px); }
+  9%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.hl__srcName {
+  display: block; font-size: clamp(12px, 1vw, 15px); font-weight: 500; letter-spacing: -0.01em;
+}
+.hl__endpoint {
+  display: block; font-size: 9.5px; color: var(--accent);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px;
+}
+.hl__kind { display: block; font-size: 9.5px; color: var(--muted); margin-top: 2px; }
+
+.hl__pipe { display: flex; flex-direction: column; gap: 12px; align-items: center; min-width: 0; }
+.hl__rail {
+  position: relative; width: 100%; height: 2px; border-radius: 999px;
+  background: repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 10px);
+}
+.hl__rail i {
+  position: absolute; top: 50%; width: 5px; height: 5px; margin-top: -2.5px;
+  border-radius: 50%; background: var(--accent);
+  animation: hl-run 2.6s linear infinite;
+}
+.hl__rail i:nth-child(2) { animation-delay: .85s; }
+.hl__rail i:nth-child(3) { animation-delay: 1.7s; }
+@keyframes hl-run { from { left: -3%; opacity: 0; } 12%, 88% { opacity: 1; } to { left: 100%; opacity: 0; } }
+.hl__edge { display: flex; flex-direction: column; gap: 7px; width: 100%; }
+.hl__edgeItem {
+  border: 1px dashed var(--line); border-radius: 7px; padding: 6px 8px; text-align: center;
+  opacity: 0; animation: hl-src 7s var(--ease) infinite;
+  animation-delay: calc(.7s + var(--i) * .3s);
+}
+.hl__edgeLabel { display: block; font-size: 10.5px; font-weight: 500; }
+.hl__edgeSub { display: block; font-size: 9px; color: var(--muted); margin-top: 1px; }
+
+.hl__col--out { display: flex; flex-direction: column; }
+.hl__app {
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: var(--bg); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+  opacity: 0; animation: hl-src 7s var(--ease) infinite; animation-delay: 1.6s;
+}
+.hl__chrome {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 9px; color: var(--muted);
+  border-bottom: 1px solid var(--line); padding-bottom: 6px;
+}
+.hl__chrome i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex: none; }
+.hl__hero {
+  height: 38px; border-radius: 5px;
+  background: linear-gradient(130deg, rgba(255,77,26,.85), rgba(255,77,26,.3));
+}
+.hl__grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.hl__grid i { height: 22px; border-radius: 4px; background: rgba(13,13,13,.08); }
+.hl__copy { height: 4px; border-radius: 999px; background: rgba(13,13,13,.1); }
+.hl__copy--short { width: 56%; }
+.hl__fw { font-size: 9.5px; color: var(--muted); margin-top: 8px; }
+
+.hl__foot {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  height: 48px; padding: 0 18px; font-size: 10px; color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.hl__progress { flex: none; width: 90px; height: 3px; border-radius: 999px; background: rgba(13,13,13,.1); overflow: hidden; }
+.hl__progress i { display: block; height: 100%; background: var(--accent); transform-origin: left; animation: hl-fill 7s var(--ease) infinite; }
+@keyframes hl-fill { 0% { transform: scaleX(.06); } 80%, 100% { transform: scaleX(1); } }
+.hl__cta { margin-left: auto; color: var(--muted); transition: color .4s; white-space: nowrap; }
+.hcard--headless:hover .hl__cta { color: var(--ink); }
+
+/* -- SEO and page speed card ---------------------------------------------
+   The instrument you judge speed with: a score climbing and the three
+   vitals crossing from fail to pass. */
+.hcard--speed .hcard__media, .hcard--speed:nth-child(n) .hcard__media {
+  height: min(70vh, calc(88vw * 3 / 5));
+  width: auto;
+  aspect-ratio: 5 / 3;
+  background:
+    radial-gradient(110% 80% at 18% 0%, #1b1b1a 0%, #0d0d0d 58%),
+    var(--dark);
+  display: flex; flex-direction: column;
+  color: var(--dark-ink);
+  box-shadow: 0 30px 80px -40px rgba(13,13,13,.5);
+}
+.spd__bar {
+  flex: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 14px 18px; font-size: 10px;
+  color: rgba(239,238,234,.66);
+  border-bottom: 1px solid rgba(239,238,234,.08);
+}
+.spd__live { display: inline-flex; align-items: center; gap: 8px; }
+.spd__live i {
+  width: 6px; height: 6px; border-radius: 50%; background: #3ddc84;
+  animation: spd-live 2.4s ease-out infinite;
+}
+@keyframes spd-live {
+  0% { box-shadow: 0 0 0 0 rgba(61,220,132,.5); }
+  70%, 100% { box-shadow: 0 0 0 7px rgba(61,220,132,0); }
+}
+.spd__url { color: rgba(239,238,234,.6); }
+
+.spd__body {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 34% 1fr;
+  align-items: center; gap: 18px; padding: 16px 18px;
+}
+
+/* The caption sits in reserved padding under the dial — at a negative offset
+   it landed on the ring's bottom stroke. */
+.spd__gauge {
+  position: relative; display: grid; place-items: center; min-width: 0;
+  padding-bottom: 24px;
+}
+.spd__gauge svg { width: 100%; max-width: 170px; transform: rotate(-90deg); }
+.spd__track { fill: none; stroke: rgba(239,238,234,.1); stroke-width: 7; }
+.spd__arc {
+  fill: none; stroke: #3ddc84; stroke-width: 7; stroke-linecap: round;
+  stroke-dasharray: 327; stroke-dashoffset: 327;
+  animation: spd-arc 7s var(--ease-out) infinite;
+}
+@keyframes spd-arc {
+  0% { stroke-dashoffset: 327; stroke: var(--accent); }
+  45%, 88% { stroke-dashoffset: 13; stroke: #3ddc84; }
+  100% { stroke-dashoffset: 327; stroke: var(--accent); }
+}
+.spd__score { position: absolute; display: grid; place-items: center; text-align: center; }
+.spd__score b {
+  font-size: clamp(26px, 3vw, 44px); font-weight: 500; letter-spacing: -0.04em; line-height: 1;
+}
+.spd__score i {
+  font-style: normal; font-size: 9px; color: rgba(239,238,234,.6);
+  text-transform: uppercase; letter-spacing: .06em; margin-top: 4px;
+}
+.spd__from {
+  position: absolute; bottom: 0; font-size: 9.5px;
+  color: rgba(239,238,234,.5); text-decoration: line-through;
+}
+
+.spd__vitals { min-width: 0; }
+.spd__label { display: block; font-size: 10px; color: rgba(239,238,234,.6); margin-bottom: 10px; }
+.spd__vital {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px; margin-bottom: 9px;
+}
+.spd__vKey { font-size: 10px; color: rgba(239,238,234,.72); }
+.spd__meter { height: 4px; border-radius: 999px; background: rgba(239,238,234,.12); overflow: hidden; }
+.spd__meter i {
+  display: block; height: 100%; border-radius: 999px; background: #3ddc84;
+  transform: scaleX(0); transform-origin: left;
+  animation: spd-meter 7s var(--ease-out) infinite;
+  animation-delay: calc(.3s + var(--i) * .18s);
+}
+@keyframes spd-meter {
+  0% { transform: scaleX(.12); background: var(--accent); }
+  45%, 88% { transform: scaleX(var(--fill)); background: #3ddc84; }
+  100% { transform: scaleX(.12); background: var(--accent); }
+}
+.spd__swap { display: inline-flex; align-items: baseline; gap: 6px; font-size: 10px; white-space: nowrap; }
+.spd__swap s { color: rgba(239,238,234,.42); }
+.spd__swap b { color: #3ddc84; font-weight: 400; }
+
+.spd__wins { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.spd__win {
+  border: 1px solid rgba(239,238,234,.14); border-radius: 7px;
+  padding: 5px 8px; min-width: 0;
+  opacity: 0; animation: spd-win 7s var(--ease) infinite;
+  animation-delay: calc(1.4s + var(--i) * .22s);
+}
+@keyframes spd-win {
+  0%, 18% { opacity: 0; transform: translateY(4px); }
+  26%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+.spd__win b { display: block; font-size: 10.5px; font-weight: 500; color: var(--dark-ink); }
+.spd__win i { font-style: normal; display: block; font-size: 9px; color: rgba(239,238,234,.6); margin-top: 1px; }
+
+.spd__foot {
+  flex: none; display: flex; align-items: center; gap: 16px;
+  height: 54px; padding: 0 18px; font-size: 10px;
+  border-top: 1px solid rgba(239,238,234,.08);
+  color: rgba(239,238,234,.66);
+}
+.spd__payload { display: inline-flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.spd__payload s { color: rgba(239,238,234,.45); }
+.spd__payload b { color: var(--dark-ink); font-weight: 400; }
+.spd__cta { margin-left: auto; color: rgba(239,238,234,.72); transition: color .4s; white-space: nowrap; }
+.hcard--speed:hover .spd__cta { color: var(--dark-ink); }
+
+@media (max-width: 768px) {
+  .systems .hcard--headless:nth-child(n) .hcard__media,
+  .systems .hcard--speed:nth-child(n) .hcard__media { aspect-ratio: 1 / 1; }
+
+  .hl__body { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+  .hl__pipe { display: none; }
+  .hl__bypass { display: none; }
+  .hl__foot > span:not([class]) { display: none; }
+
+  .spd__body { grid-template-columns: 38% 1fr; gap: 12px; padding: 12px; }
+  .spd__gauge { padding-bottom: 18px; }
+  .spd__wins { display: none; }
+  .spd__foot > span:not([class]) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hl__src, .hl__edgeItem, .hl__app, .hl__rail i, .hl__progress i,
+  .spd__arc, .spd__meter i, .spd__win, .spd__live i { animation: none; }
+  .hl__bypass { animation: none; }
+  .hl__src, .hl__edgeItem, .hl__app, .hl__bypass, .spd__win { opacity: 1; transform: none; }
+  .hl__progress i { transform: scaleX(1); }
+  .spd__arc { stroke-dashoffset: 13; stroke: #3ddc84; }
+  .spd__meter i { transform: scaleX(var(--fill)); }
+}
+
+/* The theme layer the pipeline routes around — the reason headless exists */
+.hl__bypass {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; font-size: 9px;
+  border: 1px dashed rgba(13,13,13,.18); border-radius: 7px;
+  padding: 6px 8px; background: rgba(13,13,13,.03);
+  opacity: 0; animation: hl-src 7s var(--ease) infinite; animation-delay: 1.3s;
+}
+.hl__bypass s { color: var(--muted); text-decoration-thickness: 1px; }
+.hl__bypassTag {
+  color: var(--accent); border: 1px solid rgba(255,77,26,.4);
+  border-radius: 999px; padding: 1px 6px; white-space: nowrap;
+}
+
+/* -- Speed card: make the audit actually run ------------------------------
+   The score was a static 96 and each vital showed its before and after at
+   once, so nothing read as improving. The digits now climb through a
+   registered custom property, and each vital crossfades in place. */
+.spd__score b {
+  font-variant-numeric: tabular-nums;
+  color: #ff4d1a; /* SpeedScore drives the value and colour from here */
+}
+
+/* The "was 48" caption only earns its place once the climb has landed */
+.spd__from {
+  opacity: 0;
+  animation: spd-from 7s var(--ease) infinite;
+}
+@keyframes spd-from {
+  0%, 44% { opacity: 0; }
+  52%, 86% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Each vital swaps its value in place instead of showing both at once */
+.spd__swap {
+  display: inline-grid;
+  justify-items: end;
+  min-width: 46px;
+}
+.spd__swap s, .spd__swap b {
+  grid-area: 1 / 1;
+  animation-duration: 7s;
+  animation-timing-function: var(--ease);
+  animation-iteration-count: infinite;
+  animation-delay: calc(.3s + var(--i) * .18s);
+}
+.spd__swap s { animation-name: spd-before; }
+.spd__swap b { animation-name: spd-after; opacity: 0; }
+@keyframes spd-before {
+  0%, 34% { opacity: 1; transform: none; }
+  44%, 100% { opacity: 0; transform: translateY(-5px); }
+}
+@keyframes spd-after {
+  0%, 34% { opacity: 0; transform: translateY(5px); }
+  44%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spd__from, .spd__swap s, .spd__swap b { animation: none; }
+  .spd__from, .spd__swap s, .spd__swap b { opacity: 1; transform: none; }
 }

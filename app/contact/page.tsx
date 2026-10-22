@@ -9,15 +9,15 @@ import SmokeyCursor from "@/components/SmokeyCursor";
 import SmoothScroll from "@/components/SmoothScroll";
 
 export const metadata: Metadata = {
-  title: "Start a project — Florence Michael Maguate",
+  title: "Contact — Florence Michael Maguate",
   description:
     "Tell me what you are building: services, budget and timeline, and I will come back with a plan.",
 };
 
-export default function StartPage() {
+export default function ContactPage() {
   return (
     <>
-      <SmoothScroll />
+        <SmoothScroll />
       <Effects />
       <SmokeyCursor />
 

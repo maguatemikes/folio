@@ -8,6 +8,22 @@ import type { System } from "@/lib/data";
  * carry the same event_id, so the platforms count the conversion once.
  */
 
+/**
+ * Endpoints are explicit so each wire can carry its own gradient in user-space
+ * coordinates. A shared gradient defaults to objectBoundingBox units, and a
+ * perfectly horizontal wire has a zero-height box — which paints nothing.
+ */
+const WIRES = [
+  { d: "M 186 260 H 238", x1: 186, y1: 260, x2: 238, y2: 260 },
+  { d: "M 242 260 C 278 260, 282 140, 322 140", x1: 242, y1: 260, x2: 322, y2: 140 },
+  { d: "M 242 260 C 278 260, 282 380, 322 380", x1: 242, y1: 260, x2: 322, y2: 380 },
+  { d: "M 574 140 C 606 140, 606 260, 626 260", x1: 574, y1: 140, x2: 626, y2: 260 },
+  { d: "M 574 380 C 606 380, 606 260, 626 260", x1: 574, y1: 380, x2: 626, y2: 260 },
+  { d: "M 672 260 C 698 260, 700 122, 724 122", x1: 672, y1: 260, x2: 724, y2: 122 },
+  { d: "M 672 260 H 724", x1: 672, y1: 260, x2: 724, y2: 260 },
+  { d: "M 672 260 C 698 260, 700 398, 724 398", x1: 672, y1: 260, x2: 724, y2: 398 },
+];
+
 const DESTINATIONS = [
   { label: "GA4", sub: "Measurement Protocol", y: 84 },
   { label: "Meta CAPI", sub: "Conversions API", y: 222 },
@@ -28,11 +44,21 @@ export default function TrackingCard({ system }: { system: System }) {
 
         <svg className="track__svg" viewBox="0 0 1000 520" role="img" aria-label="Server-side and browser tracking pipeline">
           <defs>
-            <linearGradient id="track-wire" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(239,238,234,.06)" />
-              <stop offset="50%" stopColor="rgba(239,238,234,.22)" />
-              <stop offset="100%" stopColor="rgba(239,238,234,.06)" />
-            </linearGradient>
+            {WIRES.map((w, i) => (
+              <linearGradient
+                key={i}
+                id={`track-wire-${i}`}
+                gradientUnits="userSpaceOnUse"
+                x1={w.x1}
+                y1={w.y1}
+                x2={w.x2}
+                y2={w.y2}
+              >
+                <stop offset="0%" stopColor="rgba(239,238,234,.06)" />
+                <stop offset="50%" stopColor="rgba(239,238,234,.22)" />
+                <stop offset="100%" stopColor="rgba(239,238,234,.06)" />
+              </linearGradient>
+            ))}
             <pattern id="track-grid" width="26" height="26" patternUnits="userSpaceOnUse">
               <circle cx="1.2" cy="1.2" r="1.2" className="track__dot" />
             </pattern>
@@ -42,18 +68,13 @@ export default function TrackingCard({ system }: { system: System }) {
 
           {/* Wires: event → split → two lanes → dedup → platforms */}
           <g>
-            {[
-              "M 186 260 H 238",
-              "M 242 260 C 278 260, 282 140, 322 140",
-              "M 242 260 C 278 260, 282 380, 322 380",
-              "M 574 140 C 606 140, 606 260, 626 260",
-              "M 574 380 C 606 380, 606 260, 626 260",
-              "M 672 260 C 698 260, 700 122, 724 122",
-              "M 672 260 H 724",
-              "M 672 260 C 698 260, 700 398, 724 398",
-            ].map((d, i) => (
+            {WIRES.map(({ d }, i) => (
               <g key={d}>
-                <path d={d} className="track__wire" />
+                <path
+                  d={d}
+                  className="track__wire"
+                  style={{ "--wire": `url(#track-wire-${i})` } as React.CSSProperties}
+                />
                 <path d={d} className="track__pulse" style={{ "--i": i } as React.CSSProperties} />
               </g>
             ))}

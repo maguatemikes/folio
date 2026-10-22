@@ -3,7 +3,7 @@
 Portfolio for **Florence Michael Maguate** — Web Developer & Designer, Cebu City.
 
 Live sections: selected work (pinned horizontal gallery), a systems section for the
-pipelines behind the sites, about, services, recognition, and a project brief at `/start`.
+pipelines behind the sites, about, services, recognition, and a project brief at `/contact`.
 
 ## Running it
 

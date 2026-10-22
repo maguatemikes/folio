@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { systems } from "@/lib/data";
+import AiCard from "./AiCard";
 import AutomationCard from "./AutomationCard";
+import HeadlessCard from "./HeadlessCard";
 import ContentCard from "./ContentCard";
 import ListingCard from "./ListingCard";
+import SpeedCard from "./SpeedCard";
 import TrackingCard from "./TrackingCard";
 
 /**
@@ -54,6 +57,12 @@ export default function Systems() {
               <ContentCard system={s} />
             ) : s.diagram === "listing" ? (
               <ListingCard system={s} />
+            ) : s.diagram === "ai" ? (
+              <AiCard system={s} />
+            ) : s.diagram === "headless" ? (
+              <HeadlessCard system={s} />
+            ) : s.diagram === "speed" ? (
+              <SpeedCard system={s} />
             ) : (
               <TrackingCard system={s} />
             )}

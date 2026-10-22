@@ -14,7 +14,7 @@ type Phase = "loading" | "filled" | "dock" | "done";
 /**
  * Module scope lives as long as the document: it resets on a real page load or
  * refresh (intro plays) but survives client-side navigation (intro skipped, so
- * coming back from /start does not replay it).
+ * coming back from /contact does not replay it).
  */
 let playedThisDocument = false;
 

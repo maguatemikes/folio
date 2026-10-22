@@ -18,7 +18,7 @@ const ROWS = [
 
 export default function ListingCard({ system }: { system: System }) {
   return (
-    <Link href={system.href ?? "/start"} className="hcard hcard--listing">
+    <Link href={system.href ?? "/contact"} className="hcard hcard--listing">
       <div className="hcard__media listing">
         <div className="listing__bar mono">
           <span className="listing__tabs">

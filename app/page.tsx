@@ -31,7 +31,7 @@ function SectionHead({ index, title, note }: { index: string; title: string; not
 export default function Home() {
   return (
     <>
-      <Loader />
+        <Loader />
       <SmoothScroll />
       <ScrollProgress />
       <Effects />
@@ -71,7 +71,7 @@ export default function Home() {
 
           <div className="hero__bottom">
             <p className="hero__intro reveal-fade">
-              Web developer and designer based in {site.city}. Five years building responsive,
+              Web developer and designer based in {site.city}. Ten years building responsive,
               high-conversion websites, e-commerce stores and the automations behind them.
             </p>
             <a href="#work" className="scroll-cue mono reveal-fade" data-magnetic>
@@ -185,7 +185,7 @@ export default function Home() {
           <span>07</span>
         </div>
 
-        <TransitionLink href="/start" className="contact__cta" data-inview>
+        <TransitionLink href="/contact" className="contact__cta" data-inview>
           <span className="line">
             <span className="line__inner">Let&apos;s work</span>
           </span>
